@@ -1,8 +1,8 @@
 import pygame
 import random
+from enum import Enum
 
-# creating the data structure for pieces
-# setting up global vars
+
 # functions
 # - create_grid
 # - draw_grid
@@ -10,47 +10,61 @@ import random
 # - rotating shape in main
 # - setting up the main
 
-"""
-10 x 20 square grid
-shapes: S, Z, I, O, J, L, T
-represented in order by 0 - 6
-"""
-
 pygame.font.init()
 
 # global variables
-BLOCK_SIZE = 30 # used for drawing later in the program
+WIDTH = 300
+HEIGHT = 810
+BLOCK_SIZE = 30 # Used for drawing later in the program
+PLAY_AREA_START = 210 # Combined with BLOCK_SIZE, this allows for blocks for
+                      # graphics above the play area.
 
-class Tetris():
+SPEED = 20 # Sets game speed.
 
-    #shapes in arrays, 0s represent empty space
+################################################################################
+################################################################################
+
+# This class uses Enum to predefine constants for directions later in the program                    
+class Direction(Enum):
+    RIGHT = 1
+    LEFT = 2
+    UP = 3
+    DOWN = 4
+
+################################################################################
+################################################################################
+
+class Piece():
+
+    # Shapes stored as Arrays, 0s represent empty space, anything else represents
+    # a block.
     pieces = [
         [[1, 1, 0],
          [0, 1, 1]], # Z
 
-        [[0, 2, 2]
+        [[0, 2, 2],
          [2, 2, 0]], # S
 
         [[3],
          [3],
          [3],
-         [3]]        # I
+         [3]],        # I
 
         [[4, 4],
-         [4, 4]]     # O
+         [4, 4]],     # O
 
         [[5, 0, 0],
-         [5, 5, 5]]  # J
+         [5, 5, 5]],  # J
 
         [[0, 0, 6],
-         [6, 6, 6]]  # L
+         [6, 6, 6]],  # L
 
         [[0, 7, 0],
          [7, 7, 7]]  # T
     ]
 
-    piece_colors = [
-        (255, 255, 255),
+    piece_colours = [
+        (255, 255, 106),
         (255, 255, 0),
         (147, 88, 254),
         (54, 175, 144),
@@ -59,33 +73,182 @@ class Tetris():
         (254, 151, 32),
         (0, 0, 255)
     ]
+    
+    # When creating a piece object, a random piece identifer 0 - 6 is created.
+    # This value is then used to index the pieces array such that a random
+    # piece may be chosen.
+    # Due to the design of the piece_colours array, this means that the same index
+    # can be used to ensure the pieces' colours remain consistent.
+    def __init__(self, piece_id=random.randint(0, 6)):
+        self.piece = Piece.pieces[piece_id]
+        self.colour = Piece.piece_colours[piece_id]
+        self.x = 5
+        self.y = (PLAY_AREA_START - 1)
+        self.piece_id = piece_id
+
+    # The function inverts the number of rows and columns by assigning them to
+    # new variables, and then creating each new row based on the information of
+    # the existing piece.
+    def rotate(self):
+        piece = self.piece
+        # Checks to ensure the piece is not an O piece, as the O piece has
+        # no rotations.
+        if self.piece_id != 3:
+            # Rotates once for clockwise rotation.
+            num_rows = num_cols_new = len(piece)
+            num_rows_new = len(piece[0])
+            rotated_piece = []
+
+            for i in range(0, num_rows_new):
+                new_row = [0] * num_cols_new
+                for j in range(0, num_cols_new):
+                    new_row[j] = piece[(num_rows-1) - j][i]
+                rotated_piece.append(new_row)
+            if noRotations == 3:
+                piece = rotated_piece
+        else:
+            return self.piece
+
+        return rotated_piece
+
+################################################################################
+################################################################################
+
+class Tetris():
         
-    def __init__(self, height=20, width=10, block_size=20):
-        pass
+    def __init__(self):
+
+        self.display = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption('Tetris')
+        self.clock = pygame.time.Clock()
+        self.reset()
 
     def reset(self):
-        pass
 
-    def rotate_piece(self, piece):
-        num_rows = num_cols_new = len(piece)
-        num_rows_new = len(piece[0])
-        rotated_piece = []
+        # Initialises the grid, making it entirely empty
+        locked_positions = {}
+        self.grid = self._create_grid()
 
-        for i in num_rows_new:
-            new_row = [0] * num_cols_new
-            
+        self._draw_window()
+
+        self.change_piece = False #?
+        self.current_piece = Piece()
+        self.next_piece = Piece()
+        self.fall_time = 0
+        self.direction = None
 
     def step(self):
 
         #1. Check Move input
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    self.direction = Direction.LEFT
+                elif event.key == pygame.K_RIGHT:
+                    self.direction = Direction.RIGHT
+                elif event.key == pygame.K_UP:
+                    self.direction = Direction.UP
+                elif event.key == pygame.K_DOWN:
+                    self.direction == Direction.DOWN   
 
-        #2. Check piece has been placed
+        #2. Move
+            self._move() # moves the piece
 
-        #2.2 Spawn New Piece
+        #3. Check for game over
 
-        #3 Check for Line Clears
+        #4. Just Move / Place Block
 
-        #3.2 Clear Lines
+        #5. Clear Lines
+            
+        #6. update ui and clock
+            self._draw_window()
+            self.clock.tick(SPEED)
 
-        #4 Check for game over
+        #6. return game over and score
         pass
+
+    # create_grid takes a dictionary as an argument which will be used for
+    # identifying which blocks should not be changed when drawing each frame
+    def _create_grid(self, locked_pos = {}):
+
+        # Creates 20 Sublists of 10 Colours for drawing the rows for tetris
+        grid = [[(0, 0, 0) for x in range(10)] for x in range(20)]
+
+        for i in range(len(grid)):
+            for j in range(len(grid[i])):
+                # j represents the column, and i represents the row
+                # this loop ensures that if a value in the grid has already
+                # been marked as locked in locked_pos, the empty space will
+                # be overridden, and the correct grid data will be written.
+                if (j, i) in locked_pos:
+                    locked_value = locked_pos[(j, i)]
+                    grid[i][j] = locked_value
+
+        return grid
+
+    def _draw_grid(self):
+
+        for i in range(len(self.grid)):
+            for j in range(len(self.grid[i])):
+                # In order this line, sets the X co-ordinate, sets the Y co-ordinate
+                # sets the rectangle width, sets the rectangle height, sets the
+                # fill to full.
+                pygame.draw.rect(self.display, self.grid[i][j], ((0 + j * BLOCK_SIZE), (PLAY_AREA_START + i * BLOCK_SIZE), BLOCK_SIZE, BLOCK_SIZE), 0)
+        # Draws the playable area Border
+        pygame.draw.rect(self.display, (211,211,211), (0, PLAY_AREA_START, 300, 600), 4)
+        
+        pygame.display.update()
+
+    def _draw_window(self):
+
+        self.display.fill((0, 0, 0))
+        # Creates a label to display the title of 'Tetris'
+        pygame.font.init()
+        font = pygame.font.SysFont('comicsans', 30)
+        label = font.render('Tetris', 1, (255, 255, 255))
+
+        self._draw_grid()
+
+        # Places the label at the correct position.
+        self.display.blit(label, (150 -  (label.get_width() / 2), 105 - (label.get_height() / 2)))
+        
+        # Updates the pygame window with the newly drawn frame.
+        pygame.display.update()
+
+    def _move(self):
+        direction = self.direction
+        # Ensures the movement is valid, if so the piece will move into its
+        # new position.
+        if direction == Direction.RIGHT:
+            self.current_piece.x += 1
+            if not(self._valid_space()):
+                self.current_piece.x -= 1
+        elif direction == Direction.LEFT:
+            self.current_piece.x -= 1
+            if not(self._valid_space()):
+                self.current_piece.x += 1
+        elif direction == Direction.DOWN:
+            self.current_piece.y += 1
+            if not(self._valid_space()):
+                self.current_piece.y -= 1
+        elif direction == Direction.UP:
+            self.current_piece.rotate()
+            if not(self._valid_space()):
+                for i in range(0, 3):
+                    self.current_piece.rotate()
+        
+        
+    
+        
+                
+if __name__ == '__main__':
+    game = Tetris()
+    while True:
+        game.step()
+        
+
+    #game loop
+    
