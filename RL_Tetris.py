@@ -14,9 +14,9 @@ pygame.font.init()
 
 # global variables
 WIDTH = 300
-HEIGHT = 810
+HEIGHT = 720
 BLOCK_SIZE = 30 # Used for drawing later in the program
-PLAY_AREA_START = 210 # Combined with BLOCK_SIZE, this allows for blocks for
+PLAY_AREA_START = 120 # Combined with BLOCK_SIZE, this allows for blocks for
                       # graphics above the play area.
 
 SPEED = 20 # Sets game speed.
@@ -199,7 +199,7 @@ class Tetris():
                 pygame.draw.rect(self.display, self.grid[i][j], ((0 + j * BLOCK_SIZE), (PLAY_AREA_START + i * BLOCK_SIZE), BLOCK_SIZE, BLOCK_SIZE), 0)
         # Draws the playable area Border
         pygame.draw.rect(self.display, (211,211,211), (0, PLAY_AREA_START, 300, 600), 4)
-        
+        self._draw_gridLines()
         pygame.display.update()
 
     def _draw_window(self):
@@ -207,16 +207,28 @@ class Tetris():
         self.display.fill((0, 0, 0))
         # Creates a label to display the title of 'Tetris'
         pygame.font.init()
-        font = pygame.font.SysFont('comicsans', 30)
-        label = font.render('Tetris', 1, (255, 255, 255))
+        font = pygame.font.SysFont('fixedsys', 30)
+        label = font.render('tetris', 1, (255, 255, 255))
 
         self._draw_grid()
 
         # Places the label at the correct position.
-        self.display.blit(label, (150 -  (label.get_width() / 2), 105 - (label.get_height() / 2)))
+        self.display.blit(label, ((WIDTH / 2) -  (label.get_width() / 2), (PLAY_AREA_START / 4) - (label.get_height() / 2)))
         
         # Updates the pygame window with the newly drawn frame.
         pygame.display.update()
+
+    def _draw_gridLines(self):
+        x = 0
+        y = PLAY_AREA_START
+
+        for i in range(len(self.grid)):
+            # Draws the Horizontal grid lines.
+            pygame.draw.line(self.display, (128, 128, 128), (x, y + i * BLOCK_SIZE), (x + WIDTH, y + i * BLOCK_SIZE))
+            for j in range(len(self.grid[i])):
+                #Draws the Vertical grid lines.
+                pygame.draw.line(self.display, (128, 128, 128), (x + j * BLOCK_SIZE, y), (x + j * BLOCK_SIZE, y + 600))
+
 
     def _move(self):
         direction = self.direction
@@ -239,6 +251,47 @@ class Tetris():
             if not(self._valid_space()):
                 for i in range(0, 3):
                     self.current_piece.rotate()
+
+    def _shape_reformat(self):
+        positions = []
+        shape = current_piece.piece
+
+        #Creates a list containing the co-ordinates for which the shape exists.
+        for i, line in enumerate(shape):
+            row = list(line)
+            for j, column in enumerate(row):
+                if column != 0:
+                    positions.append((shape.x + j, shape.y + i))
+
+        # As it currently exists, the array contains co-ordinates relative to their
+        # own data structure, not the grid. The loop below fixes this.
+        for i, pos in enumerate(positions):
+            positions[i] = (pos[0] - 2, pos[1] - 4)
+
+    def _valid_space(self):
+        shape = self.current_shape.piece
+        grid = self.grid
+
+        # Creates a 2-Dimensional list representing the grid.
+        valid_pos = [[(j, i) for j in range(10) if grid[i][j] == (0, 0, 0)] for i in range(20)]
+        # Converts the 2-Dimensional array into a 1D array for easy reading.
+        accepted_pos = [j for sub in accepted_pos for j in sub]
+
+        formatted = self._shape_reformat()
+
+        # Checks to ensure the piece is within bounds of the grid
+        for pos in formatted:
+            if pos not in accepted_pos:
+                if pos[1] > -1:
+                    return False
+        return True
+        
+
+    def _clear_rows(self):
+        pass
+
+    def _draw_shape(self):
+        pass
         
         
     
