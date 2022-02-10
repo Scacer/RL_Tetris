@@ -141,7 +141,7 @@ class Tetris():
     def step(self):
         
         # Recreates the grid each step in case new "blocks" in the grid are locked
-        self._create_grid(self.locked_positions)
+        self.grid = self._create_grid(self.locked_positions)
 
         #1. Check Move input
         for event in pygame.event.get():
@@ -206,7 +206,7 @@ class Tetris():
                 if (j, i) in locked_pos:
                     locked_value = locked_pos[(j, i)]
                     grid[i][j] = locked_value
-
+        print(grid)
         return grid
 
     def _draw_grid(self):
@@ -287,6 +287,8 @@ class Tetris():
         # own data structure, not the grid. The loop below fixes this.
         for i, pos in enumerate(positions):
             positions[i] = (pos[0] - 2, pos[1] - 4)
+
+        return positions
 
     def _valid_space(self):
         shape = self.current_shape.piece
