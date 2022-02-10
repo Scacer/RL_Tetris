@@ -24,7 +24,7 @@ SPEED = 20 # Sets game speed.
 ################################################################################
 ################################################################################
 
-# This class uses Enum to predefine constants for directions later in the program                    
+# This class uses Enum to predefine constants for directions later in the program
 class Direction(Enum):
     RIGHT = 1
     LEFT = 2
@@ -119,6 +119,7 @@ class Tetris():
     def __init__(self):
 
         self.display = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.fall_speed = 0.3
         pygame.display.set_caption('Tetris')
         self.clock = pygame.time.Clock()
         self.reset()
@@ -126,18 +127,21 @@ class Tetris():
     def reset(self):
 
         # Initialises the grid, making it entirely empty
-        locked_positions = {}
+        self.locked_positions = {}
         self.grid = self._create_grid()
 
         self._draw_window()
 
-        self.change_piece = False #?
+        self.change_piece = False
         self.current_piece = Piece()
         self.next_piece = Piece()
         self.fall_time = 0
         self.direction = None
 
     def step(self):
+        
+        # Recreates the grid each step in case new "blocks" in the grid are locked
+        self._create_grid(self.locked_positions)
 
         #1. Check Move input
         for event in pygame.event.get():
@@ -152,23 +156,39 @@ class Tetris():
                 elif event.key == pygame.K_UP:
                     self.direction = Direction.UP
                 elif event.key == pygame.K_DOWN:
-                    self.direction == Direction.DOWN   
+                    self.direction == Direction.DOWN
 
-        #2. Move
-            self._move() # moves the piece
+        self._move() # moves the piece
+        
+        self.shape_pos = self._shape_reformat()
+        print(self.shape_pos)
 
-        #3. Check for game over
+        # Adds the the colours for blocks to the grid for the shape as it enters the screen
+        for i in range(len(self.shape_pos)):
+            x, y, = self.shape_pos[i]
+            # If a part of the shape is above the screen, it will not be drawn.
+            if y > -1:
+                self.grid[y][x] = self.current_piece.colour
 
-        #4. Just Move / Place Block
+        # Adds location and colour data to the locked_positions array for use in grid creation
+        if self.change_piece:
+            for pos in self.shape_pos:
+                p = (pos[0], pos[1])
+                self.locked_positions[p] = self.current_piece.colour
+            # Changes over the pieces
+            self.current_piece = next_piece
+            self.next_piece = Piece()
 
-        #5. Clear Lines
-            
-        #6. update ui and clock
-            self._draw_window()
-            self.clock.tick(SPEED)
+        if _is_gameOver():
+            reset()
 
-        #6. return game over and score
-        pass
+        # get_rawtime() gets the time elapsed since the last clock tick, giving us a CPU relative
+        # measurement in order to determine fps.
+        self.fall_time += clock.get_rawtime()
+        self._draw_window()
+        self.clock.tick(SPEED)
+
+        self._is_pieceDrop()
 
     # create_grid takes a dictionary as an argument which will be used for
     # identifying which blocks should not be changed when drawing each frame
@@ -254,14 +274,14 @@ class Tetris():
 
     def _shape_reformat(self):
         positions = []
-        shape = current_piece.piece
+        shape = self.current_piece.piece
 
         #Creates a list containing the co-ordinates for which the shape exists.
         for i, line in enumerate(shape):
             row = list(line)
             for j, column in enumerate(row):
                 if column != 0:
-                    positions.append((shape.x + j, shape.y + i))
+                    positions.append((self.current_piece.x + j, self.current_piece.y + i))
 
         # As it currently exists, the array contains co-ordinates relative to their
         # own data structure, not the grid. The loop below fixes this.
@@ -272,7 +292,7 @@ class Tetris():
         shape = self.current_shape.piece
         grid = self.grid
 
-        # Creates a 2-Dimensional list representing the grid.
+        # Creates a 2-Dimensional list representing the grid's accepted (empty) positions.
         valid_pos = [[(j, i) for j in range(10) if grid[i][j] == (0, 0, 0)] for i in range(20)]
         # Converts the 2-Dimensional array into a 1D array for easy reading.
         accepted_pos = [j for sub in accepted_pos for j in sub]
@@ -285,7 +305,32 @@ class Tetris():
                 if pos[1] > -1:
                     return False
         return True
+
+    def _is_gameOver(self, positions):
+
+        for pos in positions:
+            x, y = pos
+            if y < 1:
+                return True
+
+        return False
+
+    def _is_pieceDrop(self):
+        # Checks each tick to see if enough time has elapsed for the current piece to drop
+        if self.fall_time / 1000 > self.fall_speed:
+            # Resets fall_time so that the next drop  can be calculated
+            fall_time = 0
+            self.current_piece.y += 1
+            # Prevents downward movement from occuring if it causes the piece to
+            # move into an invalid space.
+            if not(self._valid_space()) and self.current_piece.y > 0:
+                self.current_piece.y -= 1
+                # Will indicate on the next step() iteration that the piece needs to be
+                # locked in place and the next one needs to be spawned.
+                self.change_piece = True
         
+    def _is_gameOver(self):
+        pass
 
     def _clear_rows(self):
         pass
