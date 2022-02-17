@@ -2,6 +2,7 @@ import pygame
 import random
 from enum import Enum
 import time
+import logging
 
 # functions
 # - create_grid
@@ -221,7 +222,7 @@ class Tetris():
         # Draws the playable area Border
         pygame.draw.rect(self.display, (211,211,211), (0, PLAY_AREA_START, 300, 600), 4)
         self._draw_gridLines()
-        pygame.display.update()
+        pygame.display.flip()
 
     def _draw_window(self):
 
@@ -237,7 +238,7 @@ class Tetris():
         self.display.blit(label, ((WIDTH / 2) -  (label.get_width() / 2), (PLAY_AREA_START / 4) - (label.get_height() / 2)))
         
         # Updates the pygame window with the newly drawn frame.
-        pygame.display.update()
+        pygame.display.flip()
 
     def _draw_gridLines(self):
         x = 0
@@ -265,6 +266,8 @@ class Tetris():
                 self.current_piece.x += 1
         elif direction == Direction.DOWN:
             self.current_piece.y += 1
+            # Ensures the user does not encounter a "double drop" where the piece
+            # drops a second time immediately after pressing down
             if not(self._valid_space(self.current_piece.piece)):
                 self.current_piece.y -= 1
         elif direction == Direction.UP:
@@ -284,7 +287,7 @@ class Tetris():
         # As it currently exists, the array contains co-ordinates relative to their
         # own data structure, not the grid. The loop below fixes this.
         for i, pos in enumerate(positions):
-            positions[i] = (pos[0], pos[1] - 3)
+            positions[i] = (pos[0], pos[1] - len(shape))
         return positions
 
     def _valid_space(self, shape):
@@ -296,7 +299,6 @@ class Tetris():
         valid_pos = [j for sub in valid_pos for j in sub]
 
         formatted = self._shape_reformat(self.current_piece.piece)
-        print(formatted)
 
         # Checks to ensure the piece is within bounds of the grid
         for i in formatted:
@@ -346,7 +348,6 @@ if __name__ == '__main__':
     game = Tetris()
     while True:
         game.step()
-        
         
 
     #game loop
